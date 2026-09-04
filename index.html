@@ -66,6 +66,10 @@
           <span class="tile-icon">🌡️</span>
           <span class="tile-name">Temperaturer</span>
         </button>
+        <button class="tile" data-goto="fans">
+          <span class="tile-icon">🌀</span>
+          <span class="tile-name">Fan Control</span>
+        </button>
       </div>
     </section>
 
@@ -86,6 +90,17 @@
     <!-- Temperaturer og belastning, opdateres live -->
     <section class="view" data-view="temps">
       <div id="temps-body"><p class="muted">Henter live-data...</p></div>
+    </section>
+
+    <!-- Blaeserstyring via bundkortets egen ACPI-graenseflade -->
+    <section class="view" data-view="fans">
+      <div class="row">
+        <button class="primary" id="load-fans">Hent blæsere</button>
+      </div>
+      <div id="fans-body">
+        <p class="muted">Blæserne ligger bag bundkortets firmware, så Windows beder om
+          administratoradgang, når de skal læses eller ændres.</p>
+      </div>
     </section>
 
     <!-- Tools-undermenu -->

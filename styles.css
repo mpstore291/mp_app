@@ -249,6 +249,24 @@ button.primary:disabled { opacity: .45; cursor: default; }
 .gauge-track { height: 6px; border-radius: 3px; background: #0f1216; overflow: hidden; }
 .gauge-fill { height: 100%; border-radius: 3px; background: var(--brand-light); transition: width .4s ease; }
 
+.curve-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin: 16px 0 18px; }
+.curve-label { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+.curve-inputs { display: flex; align-items: center; gap: 7px; }
+.curve-unit { font-size: 12px; color: var(--text-dim); }
+
+.curve-inputs input {
+  width: 62px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: #0f1216;
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+
+.curve-inputs input:focus { border-color: var(--brand-light); }
+
 .core-grid { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
 .core { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 .core-bar { width: 15px; height: 46px; background: #0f1216; border-radius: 3px; display: flex; align-items: flex-end; overflow: hidden; }

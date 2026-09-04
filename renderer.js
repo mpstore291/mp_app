@@ -45,6 +45,7 @@ const TITLES = {
   specs: 'PC › Specs',
   updates: 'PC › Updates',
   temps: 'PC › Temperaturer',
+  fans: 'PC › Fan Control',
   tools: 'Tools',
   ping: 'Tools › IP Ping',
   fivem: 'Tools › FiveM'
@@ -241,6 +242,117 @@ async function refreshTemps () {
   body.append(sys)
 
   tempsBody.replaceChildren(body)
+}
+
+/* ---------- Blaeserstyring ---------- */
+
+const fansBody = document.getElementById('fans-body')
+const loadFansButton = document.getElementById('load-fans')
+
+loadFansButton.onclick = async () => {
+  loadFansButton.disabled = true
+  loadFansButton.textContent = 'Venter på godkendelse...'
+  fansBody.replaceChildren(el('p', 'muted', 'Sig ja til Windows\u2019 boks om administratoradgang.'))
+
+  try {
+    renderFans(await window.mp.fans.read())
+  } catch (err) {
+    fansBody.replaceChildren(el('p', 'muted', err.message))
+  } finally {
+    loadFansButton.disabled = false
+    loadFansButton.textContent = 'Hent blæsere'
+  }
+}
+
+function point (label, temp, duty, fanType, key) {
+  const wrap = el('div', 'curve-point')
+  wrap.append(el('div', 'curve-label', label))
+
+  const tempInput = document.createElement('input')
+  tempInput.type = 'number'
+  tempInput.min = 20
+  tempInput.max = 90
+  tempInput.value = temp
+  tempInput.dataset.fan = fanType
+  tempInput.dataset.field = `${key}Temp`
+
+  const dutyInput = document.createElement('input')
+  dutyInput.type = 'number'
+  dutyInput.min = 20
+  dutyInput.max = 100
+  dutyInput.value = duty
+  dutyInput.dataset.fan = fanType
+  dutyInput.dataset.field = `${key}Duty`
+
+  const row = el('div', 'curve-inputs')
+  row.append(tempInput, el('span', 'curve-unit', '°C →'), dutyInput, el('span', 'curve-unit', '%'))
+  wrap.append(row)
+  return wrap
+}
+
+function renderFans (result) {
+  if (!result.ok) {
+    fansBody.replaceChildren(el('p', 'muted', result.error || 'Kunne ikke læse blæserne.'))
+    return
+  }
+
+  const body = el('div')
+  body.append(el('p', 'muted',
+    'Kurven bestemmer, hvor hurtigt blæseren kører ved en given temperatur. Appen tvinger '
+    + 'punkterne til at stige og holder hastigheden på mindst 20 %, så maskinen ikke kan koge.'))
+
+  for (const fan of result.fans) {
+    const panel = el('div', 'panel')
+    panel.append(el('h2', null, fan.name))
+    panel.append(el('p', 'muted',
+      `Tilstand ${fan.mode}${fan.profile ? ` · profil ${fan.profile}` : ''}${fan.source ? ` · styret af ${fan.source}` : ''}`))
+
+    if (!fan.curve) {
+      panel.append(el('p', 'muted', 'Bundkortet udleverer ingen kurve for denne blæser, så den kan kun aflæses.'))
+      body.append(panel)
+      continue
+    }
+
+    const grid = el('div', 'curve-grid')
+    grid.append(
+      point('Nederste punkt', fan.curve.lowTemp, fan.curve.lowDuty, fan.type, 'low'),
+      point('Midterste punkt', fan.curve.midTemp, fan.curve.midDuty, fan.type, 'mid'),
+      point('Øverste punkt', fan.curve.highTemp, fan.curve.highDuty, fan.type, 'high')
+    )
+    panel.append(grid)
+
+    const save = el('button', 'primary', 'Gem kurve')
+    save.onclick = () => saveCurve(fan, save)
+    panel.append(save)
+    body.append(panel)
+  }
+
+  fansBody.replaceChildren(body)
+}
+
+async function saveCurve (fan, button) {
+  const value = field => Number(
+    fansBody.querySelector(`input[data-fan="${fan.type}"][data-field="${field}"]`).value
+  )
+
+  const curve = {
+    type: fan.type,
+    mode: fan.mode === 'DC' ? 'DC' : 'PWM',
+    lowTemp: value('lowTemp'), lowDuty: value('lowDuty'),
+    midTemp: value('midTemp'), midDuty: value('midDuty'),
+    highTemp: value('highTemp'), highDuty: value('highDuty')
+  }
+
+  button.disabled = true
+  button.textContent = 'Gemmer...'
+  try {
+    const result = await window.mp.fans.write([curve])
+    if (result.ok) renderFans(result)
+    else fansBody.replaceChildren(el('p', 'muted', result.error))
+  } finally {
+    button.disabled = false
+    button.textContent = 'Gem kurve'
+  }
 }
 
 /* ---------- Windows updates ---------- */
