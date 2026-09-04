@@ -1,7 +1,7 @@
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
-const { run } = require('./powershell')
+const { run, runJson } = require('./powershell')
 
 const WORK_DIR = path.join(os.tmpdir(), 'mp_functions')
 const JOB_FILE = path.join(WORK_DIR, 'fan-job.json')
@@ -109,7 +109,39 @@ async function runHelper (job) {
   return result
 }
 
+// Undersoeger uden administratoradgang, om maskinen overhovedet har graensefladen.
+// Saa slipper folk med andre bundkort for en formaalsloes UAC-boks.
+const SUPPORT_SCRIPT = `
+$board = Get-CimInstance Win32_BaseBoard | Select-Object -First 1
+$cls = Get-CimClass -Namespace root/WMI -ClassName ASUSManagement -ErrorAction SilentlyContinue
+$hasFanMethods = $false
+if ($cls) { $hasFanMethods = [bool]($cls.CimClassMethods | Where-Object { $_.Name -eq 'SetManualFanCurve' }) }
+[PSCustomObject]@{
+  vendor    = $board.Manufacturer
+  product   = $board.Product
+  supported = $hasFanMethods
+} | ConvertTo-Json -Compress
+`
+
+async function supported () {
+  try {
+    const info = await runJson(SUPPORT_SCRIPT, { timeout: 20000 })
+    const board = [info.vendor, info.product].filter(Boolean).join(' ') || 'ukendt bundkort'
+
+    return info.supported
+      ? { supported: true, board }
+      : {
+          supported: false,
+          board,
+          reason: `Blæserstyringen taler ASUS' grænseflade i bundkortets firmware, og den findes ikke på ${board}. `
+            + 'Andre mærker har hver deres egen, som skal kortlægges for sig.'
+        }
+  } catch (err) {
+    return { supported: false, board: 'ukendt bundkort', reason: `Kunne ikke undersøge bundkortet: ${err.message}` }
+  }
+}
+
 const read = () => runHelper({ action: 'read' })
 const write = fans => runHelper({ action: 'write', fans: fans.map(sanitiseCurve) })
 
-module.exports = { read, write, sanitiseCurve }
+module.exports = { read, write, supported, sanitiseCurve }

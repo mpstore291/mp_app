@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('mp', {
   hardware: () => ipcRenderer.invoke('hardware:status'),
 
   fans: {
+    supported: () => ipcRenderer.invoke('fans:supported'),
     read: () => ipcRenderer.invoke('fans:read'),
     write: curves => ipcRenderer.invoke('fans:write', curves)
   },

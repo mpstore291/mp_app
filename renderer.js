@@ -65,6 +65,7 @@ function show (name) {
 
   if (name === 'specs') loadSpecs()
   if (name === 'rgb') loadRgb()
+  if (name === 'fans') checkFanSupport()
   name === 'temps' ? startTemps() : stopTemps()
 }
 
@@ -294,7 +295,13 @@ async function getAura () {
     const picked = await navigator.hid.requestDevice({ filters })
     device = picked[0]
   }
-  if (!device) throw new Error('Fandt ingen Aura-controller på USB.')
+  if (!device) {
+    throw new Error(
+      'Fandt ingen ASUS Aura-controller på denne PC. Lysstyringen taler Auras protokol, '
+      + 'så den virker på ASUS-bundkort med indbygget RGB. Andre mærker som Corsair, '
+      + 'Razer og MSI bruger hver deres egen protokol.'
+    )
+  }
 
   if (!device.opened) await device.open()
   auraDevice = device
@@ -434,6 +441,24 @@ document.getElementById('rgb-restore').onclick = async () => {
 
 const fansBody = document.getElementById('fans-body')
 const loadFansButton = document.getElementById('load-fans')
+
+// Undersoeges foerst uden administratoradgang, saa folk med andre bundkort ikke
+// moeder en UAC-boks til ingen nytte.
+let fanSupportChecked = false
+async function checkFanSupport () {
+  if (fanSupportChecked) return
+  fanSupportChecked = true
+
+  const info = await window.mp.fans.supported()
+  if (info.supported) {
+    fansBody.replaceChildren(el('p', 'muted',
+      `${info.board} understøtter blæserstyring. Windows beder om administratoradgang, når kurverne skal læses eller ændres.`))
+    return
+  }
+
+  loadFansButton.classList.add('hidden')
+  fansBody.replaceChildren(el('p', 'muted', info.reason))
+}
 
 loadFansButton.onclick = async () => {
   loadFansButton.disabled = true

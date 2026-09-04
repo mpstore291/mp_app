@@ -116,6 +116,7 @@ function registerHandlers () {
   ipcMain.handle('ping:run', (_e, host) => ping(host))
   ipcMain.handle('specs:get', () => getSpecs())
   ipcMain.handle('hardware:status', () => getStatus())
+  ipcMain.handle('fans:supported', () => fans.supported())
   ipcMain.handle('fans:read', () => fans.read())
   ipcMain.handle('fans:write', (_e, curves) => fans.write(curves))
   ipcMain.handle('fivem:lookup', (_e, code) => lookup(code))
