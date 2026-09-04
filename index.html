@@ -70,6 +70,10 @@
           <span class="tile-icon">🌀</span>
           <span class="tile-name">Fan Control</span>
         </button>
+        <button class="tile" data-goto="rgb">
+          <span class="tile-icon">🌈</span>
+          <span class="tile-name">RGB</span>
+        </button>
       </div>
     </section>
 
@@ -100,6 +104,33 @@
       <div id="fans-body">
         <p class="muted">Blæserne ligger bag bundkortets firmware, så Windows beder om
           administratoradgang, når de skal læses eller ændres.</p>
+      </div>
+    </section>
+
+    <!-- RGB via ASUS' Aura-controller paa USB -->
+    <section class="view" data-view="rgb">
+      <div id="rgb-status"><p class="muted">Leder efter lyscontrolleren...</p></div>
+
+      <div class="panel hidden" id="rgb-panel">
+        <h2>Farve</h2>
+        <div class="swatches" id="swatches"></div>
+
+        <div class="rgb-controls">
+          <label class="rgb-field">
+            <span>Egen farve</span>
+            <input type="color" id="rgb-color" value="#00ff88">
+          </label>
+          <label class="rgb-field">
+            <span>Lysstyrke <b id="brightness-value">100 %</b></span>
+            <input type="range" id="rgb-brightness" min="0" max="100" value="100">
+          </label>
+        </div>
+
+        <div class="row">
+          <button class="primary" id="rgb-apply">Sæt farve</button>
+          <button class="primary ghost" id="rgb-restore">Giv lyset tilbage til bundkortet</button>
+        </div>
+        <div id="rgb-result"></div>
       </div>
     </section>
 

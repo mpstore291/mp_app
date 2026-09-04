@@ -6,6 +6,8 @@ const { getSpecs } = require('./src/specs')
 const { lookup } = require('./src/fivem')
 const { getStatus } = require('./src/hardware')
 const fans = require('./src/fans')
+
+const AURA_VENDOR = 0x0b05
 const winupdate = require('./src/winupdate')
 
 let win = null
@@ -36,6 +38,18 @@ function createWindow () {
       console.error('[UI] processen stoppede:', details.reason)
     })
   }
+
+  // Electron kan selv tale med USB-enheder, saa RGB'en ikke kraever et modul med
+  // maskinkode. Her gives appen lov til at vaelge Aura-controlleren uden at plage
+  // brugeren med en enhedsvaelger, og kun den.
+  const { session } = win.webContents
+  session.setDevicePermissionHandler(details =>
+    details.deviceType === 'hid' && details.device?.vendorId === AURA_VENDOR)
+  session.on('select-hid-device', (event, details, callback) => {
+    event.preventDefault()
+    const device = details.deviceList.find(d => d.vendorId === AURA_VENDOR)
+    callback(device ? device.deviceId : null)
+  })
 
   win.loadFile('index.html')
   win.once('ready-to-show', () => win.show())

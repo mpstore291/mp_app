@@ -46,6 +46,7 @@ const TITLES = {
   updates: 'PC › Updates',
   temps: 'PC › Temperaturer',
   fans: 'PC › Fan Control',
+  rgb: 'PC › RGB',
   tools: 'Tools',
   ping: 'Tools › IP Ping',
   fivem: 'Tools › FiveM'
@@ -63,6 +64,7 @@ function show (name) {
   document.getElementById('app').scrollTop = 0
 
   if (name === 'specs') loadSpecs()
+  if (name === 'rgb') loadRgb()
   name === 'temps' ? startTemps() : stopTemps()
 }
 
@@ -242,6 +244,190 @@ async function refreshTemps () {
   body.append(sys)
 
   tempsBody.replaceChildren(body)
+}
+
+/* ---------- RGB ---------- */
+
+const PRESETS = [
+  ['Rød', '#ff0000'], ['Orange', '#ff6a00'], ['Gul', '#ffd000'],
+  ['Grøn', '#00ff40'], ['Cyan', '#00e5ff'], ['Blå', '#0066ff'],
+  ['Lilla', '#8a2be2'], ['Pink', '#ff2d95'], ['Hvid', '#ffffff']
+]
+
+// ASUS' Aura-controller styres over USB. Alle pakker er 65 bytes, hvor den foerste
+// er rapport-nummeret 0xEC, og de resterende 64 er indholdet.
+const AURA_VENDOR = 0x0b05
+const AURA_PRODUCTS = [0x19af, 0x1939, 0x18f3]
+const AURA_REPORT = 0xec
+
+const CMD_EFFECT = 0x35
+const CMD_DIRECT = 0x40
+const CMD_COMMIT = 0x3f
+const CMD_FIRMWARE = 0x82
+const MODE_DIRECT = 0xff
+
+// Tilstanden saettes samlet for fast og adresserbart lys, mens farver sendes til
+// hver kanal for sig: 0-3 er de adresserbare stik, 4 er lyset paa bundkortet.
+const EFFECT_CHANNELS = [0x00, 0x01]
+const COLOR_CHANNELS = [0x00, 0x01, 0x02, 0x03, 0x04]
+const CHUNK = 20
+const STARTS = [0, 20, 40, 60, 80, 100]
+
+let auraDevice = null
+
+function payload (...bytes) {
+  const buf = new Uint8Array(64)
+  bytes.forEach((b, i) => { buf[i] = b & 0xff })
+  return buf
+}
+
+const send = (device, ...bytes) => device.sendReport(AURA_REPORT, payload(...bytes))
+
+async function getAura () {
+  if (auraDevice && auraDevice.opened) return auraDevice
+
+  const filters = AURA_PRODUCTS.map(productId => ({ vendorId: AURA_VENDOR, productId }))
+  const known = await navigator.hid.getDevices()
+  let device = known.find(d => d.vendorId === AURA_VENDOR && AURA_PRODUCTS.includes(d.productId))
+
+  if (!device) {
+    const picked = await navigator.hid.requestDevice({ filters })
+    device = picked[0]
+  }
+  if (!device) throw new Error('Fandt ingen Aura-controller på USB.')
+
+  if (!device.opened) await device.open()
+  auraDevice = device
+  return device
+}
+
+// Svaret kommer som en indgaaende rapport, ikke som returvaerdi.
+function awaitReport (device, timeout = 1000) {
+  return new Promise(resolve => {
+    const done = data => {
+      clearTimeout(timer)
+      device.removeEventListener('inputreport', handler)
+      resolve(data)
+    }
+    const handler = event => done(event.data)
+    const timer = setTimeout(() => done(null), timeout)
+    device.addEventListener('inputreport', handler)
+  })
+}
+
+const rgbStatus = document.getElementById('rgb-status')
+const rgbPanel = document.getElementById('rgb-panel')
+const rgbColor = document.getElementById('rgb-color')
+const rgbBrightness = document.getElementById('rgb-brightness')
+const rgbResult = document.getElementById('rgb-result')
+
+let rgbLoaded = false
+
+async function loadRgb () {
+  if (rgbLoaded) return
+
+  let device
+  try {
+    device = await getAura()
+  } catch (err) {
+    rgbStatus.replaceChildren(el('p', 'muted', err.message))
+    return
+  }
+
+  let firmware = 'ukendt'
+  try {
+    await send(device, CMD_FIRMWARE)
+    const reply = await awaitReport(device)
+    if (reply) {
+      firmware = new TextDecoder('latin1')
+        .decode(new Uint8Array(reply.buffer, reply.byteOffset + 1, 16))
+        .replace(/[^\x20-\x7e]/g, '').trim() || 'ukendt'
+    }
+  } catch {
+    // Firmwarenavnet er kun pynt; styringen virker uden.
+  }
+
+  rgbStatus.replaceChildren(el('p', 'muted',
+    `${device.productName} fundet · firmware ${firmware}. Styrer lyset på bundkortet og de tilsluttede RGB-stik.`))
+  rgbPanel.classList.remove('hidden')
+
+  const swatches = document.getElementById('swatches')
+  swatches.replaceChildren()
+  for (const [name, hex] of PRESETS) {
+    const dot = el('button', 'swatch')
+    dot.style.background = hex
+    dot.title = name
+    dot.onclick = () => { rgbColor.value = hex; applyColor() }
+    swatches.append(dot)
+  }
+
+  rgbLoaded = true
+}
+
+function hexToRgb (hex) {
+  return {
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16)
+  }
+}
+
+async function applyColor () {
+  const base = hexToRgb(rgbColor.value)
+  const scale = Number(rgbBrightness.value) / 100
+  const colour = {
+    r: Math.round(base.r * scale),
+    g: Math.round(base.g * scale),
+    b: Math.round(base.b * scale)
+  }
+
+  rgbResult.replaceChildren(el('p', 'muted', 'Sender farve...'))
+
+  try {
+    const device = await getAura()
+
+    // Uden dette overskriver controllerens egen effekt vores farver med det samme.
+    for (const channel of EFFECT_CHANNELS) {
+      await send(device, CMD_EFFECT, channel, 0x00, 0x00, MODE_DIRECT)
+    }
+
+    const chunk = []
+    for (let i = 0; i < CHUNK; i++) chunk.push(colour.r, colour.g, colour.b)
+
+    for (const channel of COLOR_CHANNELS) {
+      for (const start of STARTS) {
+        // Farverne traeder foerst frem naar bit 0x80 saettes, og kun paa sidste pakke.
+        const apply = start === STARTS[STARTS.length - 1] ? 0x80 : 0x00
+        await send(device, CMD_DIRECT, apply | channel, start, CHUNK, ...chunk)
+      }
+    }
+
+    await send(device, CMD_COMMIT, 0x55, 0x00, 0x00)
+    rgbResult.replaceChildren(el('p', 'muted',
+      `Farven er sat (${colour.r}, ${colour.g}, ${colour.b}).`))
+  } catch (err) {
+    rgbResult.replaceChildren(el('p', 'muted', `Kunne ikke sætte farven: ${err.message}`))
+  }
+}
+
+rgbBrightness.oninput = () => {
+  document.getElementById('brightness-value').textContent = `${rgbBrightness.value} %`
+}
+
+document.getElementById('rgb-apply').onclick = applyColor
+
+document.getElementById('rgb-restore').onclick = async () => {
+  try {
+    const device = await getAura()
+    // Tilstand 0x01 er den faste farve, bundkortet selv styrer.
+    for (const channel of EFFECT_CHANNELS) {
+      await send(device, CMD_EFFECT, channel, 0x00, 0x00, 0x01)
+    }
+    await send(device, CMD_COMMIT, 0x55, 0x00, 0x00)
+    rgbResult.replaceChildren(el('p', 'muted', 'Lyset styres igen af bundkortet.'))
+  } catch (err) {
+    rgbResult.replaceChildren(el('p', 'muted', `Kunne ikke give lyset tilbage: ${err.message}`))
+  }
 }
 
 /* ---------- Blaeserstyring ---------- */
