@@ -1,6 +1,6 @@
 {
   "name": "mp_functions",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "MP Stores APP",
   "main": "main.js",
   "scripts": {
@@ -25,8 +25,7 @@
       "index.html",
       "styles.css",
       "src/**/*",
-      "assets/icon.ico",
-      "assets/logo.png"
+      "assets/**/*"
     ],
     "win": {
       "target": "nsis",

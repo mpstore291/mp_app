@@ -34,56 +34,48 @@
 
     <!-- Hovedmenu -->
     <section class="view active" data-view="menu">
-      <div class="hero">
-        <img src="assets/logo.png" alt="MP Store" class="hero-logo">
-        <p class="hero-sub">Vælg et område</p>
-      </div>
+      <div class="hero"><img src="assets/logo.png" alt="MP Store" class="hero-logo"></div>
       <div class="tiles">
         <button class="tile" data-goto="pc">
           <span class="tile-icon">🖥️</span>
           <span class="tile-name">PC</span>
-          <span class="tile-desc">Specs, Windows- og driveropdateringer</span>
         </button>
         <button class="tile disabled" disabled>
-          <span class="tile-icon">💬</span>
+          <img class="tile-logo" src="assets/discord.png" alt="">
           <span class="tile-name">Discord</span>
-          <span class="tile-desc">Kommer snart</span>
         </button>
         <button class="tile" data-goto="tools">
           <span class="tile-icon">🛠️</span>
           <span class="tile-name">Tools</span>
-          <span class="tile-desc">IP-ping og FiveM-serveropslag</span>
         </button>
       </div>
     </section>
 
     <!-- PC-undermenu -->
     <section class="view" data-view="pc">
-      <h1 class="view-title">PC</h1>
       <div class="tiles">
         <button class="tile" data-goto="specs">
           <span class="tile-icon">📋</span>
           <span class="tile-name">Specs</span>
-          <span class="tile-desc">Processor, RAM, grafikkort og drev</span>
         </button>
         <button class="tile" data-goto="updates">
           <span class="tile-icon">⬇️</span>
           <span class="tile-name">Updates</span>
-          <span class="tile-desc">Windows- og driveropdateringer</span>
+        </button>
+        <button class="tile" data-goto="temps">
+          <span class="tile-icon">🌡️</span>
+          <span class="tile-name">Temperaturer</span>
         </button>
       </div>
     </section>
 
     <!-- Specs -->
     <section class="view" data-view="specs">
-      <h1 class="view-title">Specs</h1>
       <div id="specs-body"><p class="muted">Henter systemoplysninger...</p></div>
     </section>
 
     <!-- Windows updates -->
     <section class="view" data-view="updates">
-      <h1 class="view-title">Updates</h1>
-      <p class="view-sub">Søger på Windows Update efter både programrettelser og drivere.</p>
       <div class="row">
         <button class="primary" id="scan-updates">Søg efter opdateringer</button>
         <button class="primary" id="install-updates" disabled>Installer valgte</button>
@@ -91,29 +83,41 @@
       <div id="updates-body"><p class="muted">Tryk "Søg efter opdateringer" for at komme i gang.</p></div>
     </section>
 
-    <!-- Tools -->
+    <!-- Temperaturer og belastning, opdateres live -->
+    <section class="view" data-view="temps">
+      <div id="temps-body"><p class="muted">Henter live-data...</p></div>
+    </section>
+
+    <!-- Tools-undermenu -->
     <section class="view" data-view="tools">
-      <h1 class="view-title">Tools</h1>
-
-      <div class="panel">
-        <h2>IP-ping</h2>
-        <p class="view-sub">Indtast en IP-adresse eller et værtsnavn for at se, om den svarer.</p>
-        <form class="inline-form" id="ping-form">
-          <input type="text" id="ping-host" placeholder="fx 8.8.8.8 eller google.com" autocomplete="off" spellcheck="false">
-          <button class="primary" type="submit" id="ping-button">Ping</button>
-        </form>
-        <div id="ping-result"></div>
+      <div class="tiles">
+        <button class="tile" data-goto="ping">
+          <span class="tile-icon">◉</span>
+          <span class="tile-name">IP Ping</span>
+        </button>
+        <button class="tile" data-goto="fivem">
+          <img class="tile-logo" src="assets/fivem.png" alt="">
+          <span class="tile-name">FiveM</span>
+        </button>
       </div>
+    </section>
 
-      <div class="panel">
-        <h2>FiveM-server</h2>
-        <p class="view-sub">Indsæt et cfx-link for at se spillere, ejer, IP og ressourcer.</p>
-        <form class="inline-form" id="fivem-form">
-          <input type="text" id="fivem-code" placeholder="fx cfx.re/join/abc123" autocomplete="off" spellcheck="false">
-          <button class="primary" type="submit" id="fivem-button">Slå op</button>
-        </form>
-        <div id="fivem-result"></div>
-      </div>
+    <!-- Ping -->
+    <section class="view" data-view="ping">
+      <form class="inline-form" id="ping-form">
+        <input type="text" id="ping-host" placeholder="fx 8.8.8.8 eller google.com" autocomplete="off" spellcheck="false">
+        <button class="primary" type="submit" id="ping-button">Ping</button>
+      </form>
+      <div id="ping-result"></div>
+    </section>
+
+    <!-- FiveM -->
+    <section class="view" data-view="fivem">
+      <form class="inline-form" id="fivem-form">
+        <input type="text" id="fivem-code" placeholder="fx cfx.re/join/abc123" autocomplete="off" spellcheck="false">
+        <button class="primary" type="submit" id="fivem-button">Slå op</button>
+      </form>
+      <div id="fivem-result"></div>
     </section>
 
   </main>

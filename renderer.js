@@ -44,7 +44,10 @@ const TITLES = {
   pc: 'PC',
   specs: 'PC › Specs',
   updates: 'PC › Updates',
-  tools: 'Tools'
+  temps: 'PC › Temperaturer',
+  tools: 'Tools',
+  ping: 'Tools › IP Ping',
+  fivem: 'Tools › FiveM'
 }
 
 const backButton = document.getElementById('back')
@@ -59,6 +62,7 @@ function show (name) {
   document.getElementById('app').scrollTop = 0
 
   if (name === 'specs') loadSpecs()
+  name === 'temps' ? startTemps() : stopTemps()
 }
 
 function goto (name) {
@@ -116,6 +120,93 @@ async function loadSpecs () {
   } catch (err) {
     body.replaceChildren(el('p', 'muted', `Kunne ikke hente systemoplysninger: ${err.message}`))
   }
+}
+
+/* ---------- Temperaturer og belastning ---------- */
+
+const tempsBody = document.getElementById('temps-body')
+let tempsTimer = null
+
+function startTemps () {
+  if (tempsTimer) return
+  refreshTemps()
+  tempsTimer = setInterval(refreshTemps, 2000)
+}
+
+function stopTemps () {
+  clearInterval(tempsTimer)
+  tempsTimer = null
+}
+
+// Gron under 60 grader, gul op til 80, roed derover.
+function tempColor (celsius) {
+  if (celsius === null) return 'var(--text-dim)'
+  if (celsius < 60) return 'var(--ok)'
+  if (celsius < 80) return '#d9a441'
+  return 'var(--error)'
+}
+
+function gauge (label, value, max, suffix, color) {
+  const wrap = el('div', 'gauge')
+  const head = el('div', 'gauge-head')
+  head.append(el('span', null, label), el('span', 'gauge-value', value === null ? '–' : `${value}${suffix}`))
+
+  const track = el('div', 'gauge-track')
+  const fill = el('div', 'gauge-fill')
+  fill.style.width = `${Math.min(100, Math.max(0, ((value ?? 0) / max) * 100))}%`
+  if (color) fill.style.background = color
+  track.append(fill)
+
+  wrap.append(head, track)
+  return wrap
+}
+
+async function refreshTemps () {
+  let status
+  try {
+    status = await window.mp.hardware()
+  } catch (err) {
+    tempsBody.replaceChildren(el('p', 'muted', `Kunne ikke hente data: ${err.message}`))
+    return stopTemps()
+  }
+
+  const body = el('div')
+
+  if (status.gpu.available) {
+    for (const card of status.gpu.cards) {
+      const panel = el('div', 'panel')
+      panel.append(el('h2', null, card.name))
+
+      const big = el('div', 'big-temp', card.temp === null ? '–' : `${card.temp}°`)
+      big.style.color = tempColor(card.temp)
+      panel.append(big)
+
+      panel.append(
+        gauge('Blæser', card.fan, 100, ' %'),
+        gauge('Belastning', card.load, 100, ' %'),
+        gauge('Grafikhukommelse', card.memUsed, card.memTotal || 1, ` MB af ${card.memTotal}`),
+        gauge('Strøm', card.power === null ? null : Math.round(card.power), card.powerLimit || 1, ` W af ${card.powerLimit}`)
+      )
+      if (card.clock) panel.append(el('p', 'muted', `Klokfrekvens ${card.clock} MHz`))
+      body.append(panel)
+    }
+  } else {
+    const panel = el('div', 'panel')
+    panel.append(el('h2', null, 'Grafikkort'), el('p', 'muted', status.gpu.reason))
+    body.append(panel)
+  }
+
+  const sys = el('div', 'panel')
+  sys.append(el('h2', null, status.cpu.name))
+  sys.append(
+    gauge('Processorbelastning', status.cpu.load, 100, ' %'),
+    gauge('Hukommelse', status.memory.usedPct, 100, ' %')
+  )
+  sys.append(el('p', 'muted',
+    'Processorens temperatur kan ikke aflæses uden en driver på kerneniveau, som Windows ikke tillader almindelige programmer at installere.'))
+  body.append(sys)
+
+  tempsBody.replaceChildren(body)
 }
 
 /* ---------- Windows updates ---------- */

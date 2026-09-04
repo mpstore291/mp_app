@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('mp', {
 
   ping: host => ipcRenderer.invoke('ping:run', host),
   specs: () => ipcRenderer.invoke('specs:get'),
+  hardware: () => ipcRenderer.invoke('hardware:status'),
   fivem: code => ipcRenderer.invoke('fivem:lookup', code),
 
   updates: {
