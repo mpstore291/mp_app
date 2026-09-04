@@ -1,0 +1,26 @@
+{
+  "name": "mp_functions",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^44.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.example.mpfunctions",
+    "productName": "MP_Functions",
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    }
+  }
+}
