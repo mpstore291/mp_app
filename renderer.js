@@ -44,7 +44,7 @@ const TITLES = {
   pc: 'PC',
   specs: 'PC › Specs',
   updates: 'PC › Updates',
-  temps: 'PC › Temperaturer',
+  temps: 'PC › Jobliste',
   fans: 'PC › Fan Control',
   rgb: 'PC › RGB',
   tools: 'Tools',
@@ -134,13 +134,118 @@ let tempsTimer = null
 function startTemps () {
   if (tempsTimer) return
   refreshTemps()
-  tempsTimer = setInterval(refreshTemps, 2000)
+  refreshProcesses()
+  tempsTimer = setInterval(() => {
+    refreshTemps()
+    refreshProcesses()
+  }, 2000)
 }
 
 function stopTemps () {
   clearInterval(tempsTimer)
   tempsTimer = null
 }
+
+/* ---------- Jobliste ---------- */
+
+const procList = document.getElementById('proc-list')
+const procFilter = document.getElementById('proc-filter')
+const procCount = document.getElementById('proc-count')
+
+// Windows opgiver kun hvor mange sekunder hver proces har brugt i alt. Andelen
+// beregnes ud fra hvor meget det tal er vokset siden sidste opdatering.
+const previous = new Map()
+let procBusy = false
+let procLatest = []
+
+const formatMemory = bytes => bytes >= 1024 ** 3
+  ? `${(bytes / 1024 ** 3).toFixed(1)} GB`
+  : `${Math.round(bytes / 1024 ** 2)} MB`
+
+async function refreshProcesses () {
+  if (procBusy) return
+  procBusy = true
+
+  let list
+  try {
+    list = await window.mp.processes.list()
+  } catch (err) {
+    procList.replaceChildren(el('p', 'muted', `Kunne ikke hente processer: ${err.message}`))
+    return
+  } finally {
+    procBusy = false
+  }
+
+  const now = Date.now()
+  const cores = navigator.hardwareConcurrency || 1
+
+  for (const proc of list) {
+    const before = previous.get(proc.id)
+    const seconds = (now - (before?.time ?? now)) / 1000
+    proc.load = before && seconds > 0
+      ? Math.max(0, Math.min(100, ((proc.cpu - before.cpu) / seconds / cores) * 100))
+      : 0
+    previous.set(proc.id, { cpu: proc.cpu, time: now })
+  }
+
+  // Ryd op efter processer der er lukket, saa kortet ikke vokser i det uendelige.
+  for (const id of previous.keys()) {
+    if (!list.some(p => p.id === id)) previous.delete(id)
+  }
+
+  procLatest = list
+  renderProcesses(list)
+}
+
+function renderProcesses (list) {
+  const term = procFilter.value.trim().toLowerCase()
+  const matching = term
+    ? list.filter(p => p.name.toLowerCase().includes(term) || (p.title || '').toLowerCase().includes(term))
+    : list
+
+  const shown = [...matching].sort((a, b) => b.load - a.load || b.memory - a.memory).slice(0, 40)
+  procCount.textContent = `${matching.length} af ${list.length} processer`
+
+  const scroll = procList.scrollTop
+  const rows = el('div')
+
+  for (const proc of shown) {
+    const row = el('div', 'proc-row')
+
+    const label = el('div')
+    label.append(el('div', 'proc-name', proc.name))
+    if (proc.title) label.append(el('div', 'proc-title', proc.title))
+
+    const load = el('div', 'proc-load', `${proc.load.toFixed(1)} %`)
+    if (proc.load > 25) load.style.color = '#d9a441'
+    if (proc.load > 60) load.style.color = 'var(--error)'
+
+    const end = el('button', 'proc-kill', proc.protected ? 'Windows' : 'Afslut')
+    end.disabled = proc.protected
+    end.title = proc.protected
+      ? 'Denne proces er en del af Windows og kan ikke afsluttes.'
+      : `Afslut ${proc.name} (nummer ${proc.id})`
+    if (!proc.protected) end.onclick = () => endProcess(proc)
+
+    row.append(label, load, el('div', 'proc-mem', formatMemory(proc.memory)), end)
+    rows.append(row)
+  }
+
+  procList.replaceChildren(rows)
+  procList.scrollTop = scroll
+}
+
+async function endProcess (proc) {
+  const label = proc.title ? `${proc.name} (${proc.title})` : proc.name
+  if (!confirm(`Afslut ${label}?\n\nArbejde der ikke er gemt i programmet går tabt.`)) return
+
+  const res = await window.mp.processes.kill(proc.id, proc.name)
+  if (!res.ok) alert(res.error)
+  refreshProcesses()
+}
+
+// Soegningen filtrerer i de processer vi allerede har, saa listen svarer med det samme.
+procFilter.oninput = () => renderProcesses(procLatest)
 
 // Gron under 60 grader, gul op til 80, roed derover.
 function tempColor (celsius) {

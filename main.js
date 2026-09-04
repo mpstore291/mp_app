@@ -6,6 +6,7 @@ const { getSpecs } = require('./src/specs')
 const { lookup } = require('./src/fivem')
 const { getStatus } = require('./src/hardware')
 const fans = require('./src/fans')
+const processes = require('./src/processes')
 
 const AURA_VENDOR = 0x0b05
 const winupdate = require('./src/winupdate')
@@ -116,6 +117,9 @@ function registerHandlers () {
   ipcMain.handle('ping:run', (_e, host) => ping(host))
   ipcMain.handle('specs:get', () => getSpecs())
   ipcMain.handle('hardware:status', () => getStatus())
+  ipcMain.handle('processes:list', () => processes.list())
+  ipcMain.handle('processes:kill', (_e, id, name) => processes.kill(id, name))
+
   ipcMain.handle('fans:supported', () => fans.supported())
   ipcMain.handle('fans:read', () => fans.read())
   ipcMain.handle('fans:write', (_e, curves) => fans.write(curves))

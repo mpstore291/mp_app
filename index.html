@@ -63,8 +63,8 @@
           <span class="tile-name">Updates</span>
         </button>
         <button class="tile" data-goto="temps">
-          <span class="tile-icon">🌡️</span>
-          <span class="tile-name">Temperaturer</span>
+          <span class="tile-icon">📊</span>
+          <span class="tile-name">Jobliste</span>
         </button>
         <button class="tile" data-goto="fans">
           <span class="tile-icon">🌀</span>
@@ -91,9 +91,24 @@
       <div id="updates-body"><p class="muted">Tryk "Søg efter opdateringer" for at komme i gang.</p></div>
     </section>
 
-    <!-- Temperaturer og belastning, opdateres live -->
+    <!-- Live-data oeverst, jobliste nedenunder. Begge opdateres hvert andet sekund. -->
     <section class="view" data-view="temps">
       <div id="temps-body"><p class="muted">Henter live-data...</p></div>
+
+      <div class="panel">
+        <div class="joblist-head">
+          <h2>Jobliste</h2>
+          <span class="muted" id="proc-count"></span>
+        </div>
+        <input type="text" id="proc-filter" placeholder="Søg efter program..." autocomplete="off">
+        <div class="proc-columns">
+          <span>Program</span>
+          <span>Processor</span>
+          <span>Hukommelse</span>
+          <span></span>
+        </div>
+        <div id="proc-list"><p class="muted">Henter processer...</p></div>
+      </div>
     </section>
 
     <!-- Blaeserstyring via bundkortets egen ACPI-graenseflade -->

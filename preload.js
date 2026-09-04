@@ -17,6 +17,11 @@ contextBridge.exposeInMainWorld('mp', {
   specs: () => ipcRenderer.invoke('specs:get'),
   hardware: () => ipcRenderer.invoke('hardware:status'),
 
+  processes: {
+    list: () => ipcRenderer.invoke('processes:list'),
+    kill: (id, name) => ipcRenderer.invoke('processes:kill', id, name)
+  },
+
   fans: {
     supported: () => ipcRenderer.invoke('fans:supported'),
     read: () => ipcRenderer.invoke('fans:read'),
