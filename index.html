@@ -2,57 +2,125 @@
 <html lang="da">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data: https:">
   <title>MP_Functions</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app">
-    <nav class="sidebar">
-      <div class="brand">
-        <span class="brand-mark">MP</span>
-        <div>
-          <div class="brand-name">MP_Functions</div>
-          <div class="brand-version" id="version"></div>
-        </div>
-      </div>
 
-      <div class="nav-label">Netværk</div>
-      <button class="nav-item active" data-view="ping">
-        <span class="nav-icon">◉</span> Ping
-      </button>
-
-      <div class="nav-label">Kommer snart</div>
-      <button class="nav-item disabled" disabled><span class="nav-icon">▤</span> Portscanner</button>
-      <button class="nav-item disabled" disabled><span class="nav-icon">▦</span> Systeminfo</button>
-
-      <div class="sidebar-footer">
-        <button id="check-updates" class="link-button">Søg efter opdateringer</button>
-        <div class="update-status" id="update-status"></div>
-      </div>
-    </nav>
-
-    <main class="content">
-      <section class="view" id="view-ping">
-        <header class="view-header">
-          <h1>Ping</h1>
-          <p>Indtast en IP-adresse eller et værtsnavn for at se, om den svarer.</p>
-        </header>
-
-        <form class="ping-form" id="ping-form">
-          <input
-            type="text"
-            id="host"
-            placeholder="fx 8.8.8.8 eller google.com"
-            autocomplete="off"
-            spellcheck="false">
-          <button type="submit" id="ping-button">Ping</button>
-        </form>
-
-        <div class="result" id="result"></div>
-      </section>
-    </main>
+  <!-- Startskaerm: ligger over alt andet indtil opdateringstjekket er faerdigt -->
+  <div id="splash">
+    <img src="assets/logo.png" alt="MP Store" class="splash-logo">
+    <div class="splash-bar"><span id="splash-fill"></span></div>
+    <div class="splash-text" id="splash-text">Starter op...</div>
   </div>
+
+  <!-- Vores egen titelbjaelke, siden Windows' egen er slaaet fra -->
+  <header class="titlebar">
+    <div class="titlebar-left">
+      <button class="back-button hidden" id="back">‹ Tilbage</button>
+      <img src="assets/icon.ico" alt="" class="titlebar-icon">
+      <span class="titlebar-title" id="titlebar-title">MP_Functions</span>
+    </div>
+    <div class="titlebar-buttons">
+      <button id="win-min" title="Minimer">─</button>
+      <button id="win-max" title="Maksimer">▢</button>
+      <button id="win-close" title="Luk" class="close">✕</button>
+    </div>
+  </header>
+
+  <main id="app" class="hidden">
+
+    <!-- Hovedmenu -->
+    <section class="view active" data-view="menu">
+      <div class="hero">
+        <img src="assets/logo.png" alt="MP Store" class="hero-logo">
+        <p class="hero-sub">Vælg et område</p>
+      </div>
+      <div class="tiles">
+        <button class="tile" data-goto="pc">
+          <span class="tile-icon">🖥️</span>
+          <span class="tile-name">PC</span>
+          <span class="tile-desc">Specs, Windows- og driveropdateringer</span>
+        </button>
+        <button class="tile disabled" disabled>
+          <span class="tile-icon">💬</span>
+          <span class="tile-name">Discord</span>
+          <span class="tile-desc">Kommer snart</span>
+        </button>
+        <button class="tile" data-goto="tools">
+          <span class="tile-icon">🛠️</span>
+          <span class="tile-name">Tools</span>
+          <span class="tile-desc">IP-ping og FiveM-serveropslag</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- PC-undermenu -->
+    <section class="view" data-view="pc">
+      <h1 class="view-title">PC</h1>
+      <div class="tiles">
+        <button class="tile" data-goto="specs">
+          <span class="tile-icon">📋</span>
+          <span class="tile-name">Specs</span>
+          <span class="tile-desc">Processor, RAM, grafikkort og drev</span>
+        </button>
+        <button class="tile" data-goto="updates">
+          <span class="tile-icon">⬇️</span>
+          <span class="tile-name">Updates</span>
+          <span class="tile-desc">Windows- og driveropdateringer</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Specs -->
+    <section class="view" data-view="specs">
+      <h1 class="view-title">Specs</h1>
+      <div id="specs-body"><p class="muted">Henter systemoplysninger...</p></div>
+    </section>
+
+    <!-- Windows updates -->
+    <section class="view" data-view="updates">
+      <h1 class="view-title">Updates</h1>
+      <p class="view-sub">Søger på Windows Update efter både programrettelser og drivere.</p>
+      <div class="row">
+        <button class="primary" id="scan-updates">Søg efter opdateringer</button>
+        <button class="primary" id="install-updates" disabled>Installer valgte</button>
+      </div>
+      <div id="updates-body"><p class="muted">Tryk "Søg efter opdateringer" for at komme i gang.</p></div>
+    </section>
+
+    <!-- Tools -->
+    <section class="view" data-view="tools">
+      <h1 class="view-title">Tools</h1>
+
+      <div class="panel">
+        <h2>IP-ping</h2>
+        <p class="view-sub">Indtast en IP-adresse eller et værtsnavn for at se, om den svarer.</p>
+        <form class="inline-form" id="ping-form">
+          <input type="text" id="ping-host" placeholder="fx 8.8.8.8 eller google.com" autocomplete="off" spellcheck="false">
+          <button class="primary" type="submit" id="ping-button">Ping</button>
+        </form>
+        <div id="ping-result"></div>
+      </div>
+
+      <div class="panel">
+        <h2>FiveM-server</h2>
+        <p class="view-sub">Indsæt et cfx-link for at se spillere, ejer, IP og ressourcer.</p>
+        <form class="inline-form" id="fivem-form">
+          <input type="text" id="fivem-code" placeholder="fx cfx.re/join/abc123" autocomplete="off" spellcheck="false">
+          <button class="primary" type="submit" id="fivem-button">Slå op</button>
+        </form>
+        <div id="fivem-result"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="statusbar">
+    <span id="version"></span>
+  </footer>
 
   <script src="renderer.js"></script>
 </body>

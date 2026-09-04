@@ -1,63 +1,101 @@
-# Laver et 256x256 .ico ud fra det oprindelige lille icon.ico.
-# Billedet skaleres op med bevaret forhold og centreres paa et gennemsigtigt kvadrat,
-# saa det ikke bliver traukket skaevt.
-param(
-  [string]$Source = "assets\icon.ico",
-  [string]$PreviewPath = "assets\icon-original.png",
-  [string]$ScaledPreviewPath = "assets\icon-256.png",
-  [string]$OutIco = "assets\icon-256.ico"
-)
-
+# Laver app-ikonet ud fra assets\logo.png.
+# Logoet er bredt (pentagon + "STORE"-tekst), men Windows-ikoner skal vaere kvadratiske.
+# Derfor beskaeres der om selve pentagon-maerket, som er den genkendelige del i smaa stoerrelser.
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
 
 $root = (Get-Location).Path
-$src = Join-Path $root $Source
+$logo = [System.Drawing.Bitmap]::new((Join-Path $root "assets\logo.png"))
+Write-Output "Kilde: $($logo.Width)x$($logo.Height)"
 
-$icon = New-Object System.Drawing.Icon($src)
-$original = $icon.ToBitmap()
-Write-Output "Original: $($original.Width)x$($original.Height)"
-$original.Save((Join-Path $root $PreviewPath), [System.Drawing.Imaging.ImageFormat]::Png)
+# Find pentagonens afgraensning ved at lede efter ikke-sorte pixels i den oeverste del
+# af billedet. Der scannes paa en nedskaleret kopi, saa det gaar hurtigt.
+$sw = 200
+$sh = [int]($logo.Height * $sw / $logo.Width)
+$small = [System.Drawing.Bitmap]::new($logo, $sw, $sh)
+$cutoff = [int]($sh * 0.72)   # under denne linje ligger "STORE"-teksten
 
-$size = 256
-$canvas = New-Object System.Drawing.Bitmap($size, $size)
-$g = [System.Drawing.Graphics]::FromImage($canvas)
-$g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-$g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
-$g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
-$g.Clear([System.Drawing.Color]::Transparent)
+$minX = $sw; $maxX = 0; $minY = $sh; $maxY = 0
+for ($y = 0; $y -lt $cutoff; $y++) {
+  for ($x = 0; $x -lt $sw; $x++) {
+    $p = $small.GetPixel($x, $y)
+    if (($p.R + $p.G + $p.B) -gt 90) {
+      if ($x -lt $minX) { $minX = $x }
+      if ($x -gt $maxX) { $maxX = $x }
+      if ($y -lt $minY) { $minY = $y }
+      if ($y -gt $maxY) { $maxY = $y }
+    }
+  }
+}
+# Find ogsaa hvor "STORE"-teksten begynder, saa udsnittet kan stoppe lige over den.
+$storeTop = $sh
+for ($y = $maxY + 2; $y -lt $sh; $y++) {
+  $hit = $false
+  for ($x = 0; $x -lt $sw; $x++) {
+    $p = $small.GetPixel($x, $y)
+    if (($p.R + $p.G + $p.B) -gt 90) { $hit = $true; break }
+  }
+  if ($hit) { $storeTop = $y; break }
+}
+$small.Dispose()
 
-$scale = [Math]::Min($size / $original.Width, $size / $original.Height)
-$w = [int][Math]::Round($original.Width * $scale)
-$h = [int][Math]::Round($original.Height * $scale)
-$g.DrawImage($original, [int](($size - $w) / 2), [int](($size - $h) / 2), $w, $h)
-$g.Dispose()
+$scale = $logo.Width / $sw
+$storeTopPx = $storeTop * $scale
+$bx = $minX * $scale; $by = $minY * $scale
+$bw = ($maxX - $minX + 1) * $scale; $bh = ($maxY - $minY + 1) * $scale
+Write-Output "Pentagon fundet: $([int]$bx),$([int]$by) $([int]$bw)x$([int]$bh)"
 
-$scaledPath = Join-Path $root $ScaledPreviewPath
-$canvas.Save($scaledPath, [System.Drawing.Imaging.ImageFormat]::Png)
+# Kvadratisk udsnit centreret om maerket, med lidt luft omkring. Siden begraenses,
+# saa bunden af udsnittet holder sig over "STORE"-teksten.
+$cx = $bx + $bw / 2
+$cy = $by + $bh / 2
+$maxSide = 2 * (($storeTopPx - 8) - $cy)
+$side = [Math]::Min([Math]::Max($bw, $bh) * 1.18, $maxSide)
+Write-Output "Udsnit: side $([int]$side) (loft paa $([int]$maxSide) pga. STORE-tekst ved y=$([int]$storeTopPx))"
+$srcRect = [System.Drawing.RectangleF]::new($cx - $side / 2, $cy - $side / 2, $side, $side)
 
-# Pak PNG'en ind i en .ico-container (ICO understoetter PNG-data ved 256x256).
-$png = [System.IO.File]::ReadAllBytes($scaledPath)
-$stream = [System.IO.File]::Create((Join-Path $root $OutIco))
-$writer = New-Object System.IO.BinaryWriter($stream)
-$writer.Write([UInt16]0)      # reserveret
-$writer.Write([UInt16]1)      # type 1 = ikon
-$writer.Write([UInt16]1)      # antal billeder
-$writer.Write([Byte]0)        # bredde 0 betyder 256
-$writer.Write([Byte]0)        # hoejde 0 betyder 256
-$writer.Write([Byte]0)        # ingen palet
-$writer.Write([Byte]0)        # reserveret
-$writer.Write([UInt16]1)      # farveplaner
-$writer.Write([UInt16]32)     # bits pr. pixel
-$writer.Write([UInt32]$png.Length)
-$writer.Write([UInt32]22)     # offset til billeddata
-$writer.Write($png)
-$writer.Flush()
-$writer.Dispose()
-$stream.Dispose()
+function New-Square([int]$size) {
+  $bmp = [System.Drawing.Bitmap]::new($size, $size)
+  $g = [System.Drawing.Graphics]::FromImage($bmp)
+  $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+  $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+  $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+  $g.DrawImage($logo, [System.Drawing.RectangleF]::new(0, 0, $size, $size), $srcRect, [System.Drawing.GraphicsUnit]::Pixel)
+  $g.Dispose()
+  return $bmp
+}
 
-$canvas.Dispose()
-$original.Dispose()
-$icon.Dispose()
+# Gem en 256px PNG til brug i selve brugerfladen.
+$preview = New-Square 256
+$preview.Save((Join-Path $root "assets\icon-256.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$preview.Dispose()
 
-Write-Output "Skrev $OutIco ($((Get-Item (Join-Path $root $OutIco)).Length) bytes)"
+# Byg en .ico med flere stoerrelser, saa den ser skarp ud baade i proceslinjen og i stifinderen.
+$sizes = @(256, 128, 64, 48, 32, 16)
+$blobs = @()
+foreach ($s in $sizes) {
+  $bmp = New-Square $s
+  $ms = [System.IO.MemoryStream]::new()
+  $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+  $blobs += , $ms.ToArray()
+  $ms.Dispose(); $bmp.Dispose()
+}
+
+$out = [System.IO.File]::Create((Join-Path $root "assets\icon.ico"))
+$w = [System.IO.BinaryWriter]::new($out)
+$w.Write([UInt16]0); $w.Write([UInt16]1); $w.Write([UInt16]$sizes.Count)
+$offset = 6 + 16 * $sizes.Count
+for ($i = 0; $i -lt $sizes.Count; $i++) {
+  $dim = if ($sizes[$i] -ge 256) { 0 } else { $sizes[$i] }
+  $w.Write([Byte]$dim); $w.Write([Byte]$dim)
+  $w.Write([Byte]0); $w.Write([Byte]0)
+  $w.Write([UInt16]1); $w.Write([UInt16]32)
+  $w.Write([UInt32]$blobs[$i].Length)
+  $w.Write([UInt32]$offset)
+  $offset += $blobs[$i].Length
+}
+foreach ($blob in $blobs) { $w.Write($blob) }
+$w.Flush(); $w.Dispose(); $out.Dispose()
+$logo.Dispose()
+
+Write-Output "Skrev assets\icon.ico med stoerrelserne $($sizes -join ', ')"
