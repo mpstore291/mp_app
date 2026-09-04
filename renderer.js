@@ -196,14 +196,48 @@ async function refreshTemps () {
     body.append(panel)
   }
 
+  const cpu = el('div', 'panel')
+  cpu.append(el('h2', null, status.cpu.name))
+
+  const clock = el('div', 'big-temp', status.cpu.clock ? `${(status.cpu.clock / 1000).toFixed(2)} GHz` : '–')
+  clock.style.color = 'var(--brand-light)'
+  cpu.append(clock)
+  if (status.cpu.maxClock) {
+    cpu.append(el('p', 'muted', `Basisfrekvens ${(status.cpu.maxClock / 1000).toFixed(1)} GHz — resten er turbo`))
+  }
+
+  cpu.append(gauge('Samlet belastning', status.cpu.load, 100, ' %'))
+
+  if (status.cpu.cores.length) {
+    cpu.append(el('div', 'gauge-head', `Kerner (${status.cpu.cores.length})`))
+    const grid = el('div', 'core-grid')
+    status.cpu.cores.forEach((load, i) => {
+      const core = el('div', 'core')
+      const bar = el('div', 'core-bar')
+      const fill = el('div', 'core-fill')
+      fill.style.height = `${load}%`
+      if (load > 80) fill.style.background = 'var(--error)'
+      else if (load > 45) fill.style.background = '#d9a441'
+      bar.append(fill)
+      core.append(bar, el('div', 'core-label', i))
+      core.title = `Kerne ${i}: ${load} %`
+      grid.append(core)
+    })
+    cpu.append(grid)
+  }
+  body.append(cpu)
+
   const sys = el('div', 'panel')
-  sys.append(el('h2', null, status.cpu.name))
-  sys.append(
-    gauge('Processorbelastning', status.cpu.load, 100, ' %'),
-    gauge('Hukommelse', status.memory.usedPct, 100, ' %')
-  )
-  sys.append(el('p', 'muted',
-    'Processorens temperatur kan ikke aflæses uden en driver på kerneniveau, som Windows ikke tillader almindelige programmer at installere.'))
+  sys.append(el('h2', null, 'System'))
+  sys.append(gauge('Hukommelse', status.memory.usedPct, 100, ' %'))
+
+  for (const zone of status.zones) {
+    sys.append(gauge(zone.name, zone.temp, 100, ' °C', tempColor(zone.temp)))
+  }
+
+  sys.append(el('p', 'muted', status.zones.length
+    ? 'Termozonen sidder på bundkortet. Temperaturen inde i selve processorkernerne kan Windows ikke udlevere uden en driver på kerneniveau.'
+    : 'Dit bundkort melder ingen temperaturer til Windows.'))
   body.append(sys)
 
   tempsBody.replaceChildren(body)

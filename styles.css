@@ -249,6 +249,12 @@ button.primary:disabled { opacity: .45; cursor: default; }
 .gauge-track { height: 6px; border-radius: 3px; background: #0f1216; overflow: hidden; }
 .gauge-fill { height: 100%; border-radius: 3px; background: var(--brand-light); transition: width .4s ease; }
 
+.core-grid { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+.core { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.core-bar { width: 15px; height: 46px; background: #0f1216; border-radius: 3px; display: flex; align-items: flex-end; overflow: hidden; }
+.core-fill { width: 100%; background: var(--brand-light); border-radius: 3px; transition: height .4s ease; }
+.core-label { font-size: 9px; color: var(--text-dim); }
+
 .spec-group { margin-bottom: 22px; }
 .spec-group h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); margin-bottom: 8px; }
 

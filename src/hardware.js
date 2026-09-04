@@ -55,24 +55,73 @@ function readGpu () {
   })
 }
 
-async function readCpu () {
+// ACPI-termozonerne er de eneste temperaturer Windows udleverer uden en kernedriver.
+// De maaler paa bundkortet, ikke inde i selve processorkernerne.
+const SYSTEM_SCRIPT = `
+$cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+$cores = @(Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor |
+  Where-Object { $_.Name -ne '_Total' } |
+  Sort-Object { [int]$_.Name } |
+  ForEach-Object { [int]$_.PercentProcessorTime })
+$zones = @(Get-CimInstance Win32_PerfFormattedData_Counters_ThermalZoneInformation -ErrorAction SilentlyContinue |
+  ForEach-Object { [PSCustomObject]@{ name = $_.Name; deciKelvin = [double]$_.HighPrecisionTemperature } })
+# CurrentClockSpeed melder bare basisfrekvensen. Den faktiske frekvens findes ved at
+# gange basis med hvor mange procent af sin ydeevne processoren koerer paa lige nu.
+$perf = Get-CimInstance Win32_PerfFormattedData_Counters_ProcessorInformation -ErrorAction SilentlyContinue |
+  Where-Object { $_.Name -eq '_Total' } | Select-Object -First 1
+[PSCustomObject]@{
+  load     = $cpu.LoadPercentage
+  perfPct  = $perf.PercentProcessorPerformance
+  baseClock= $cpu.MaxClockSpeed
+  cores    = $cores
+  zones    = $zones
+} | ConvertTo-Json -Depth 4 -Compress
+`
+
+function tidyZoneName (name) {
+  const short = String(name).replace(/^\\?_TZ\./, '').replace(/_/g, ' ').trim()
+  return `Termozone ${short}`
+}
+
+async function readSystem () {
   try {
-    const load = await runJson('(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average | ConvertTo-Json', { timeout: 15000 })
-    return { load: typeof load === 'number' ? load : null }
+    const raw = await runJson(SYSTEM_SCRIPT, { timeout: 20000 })
+    const cores = raw.cores || []
+
+    return {
+      // LoadPercentage er upaalidelig og kommer tit tom tilbage, saa kernerne bruges
+      // som reserve.
+      load: raw.load ?? (cores.length
+        ? Math.round(cores.reduce((a, b) => a + b, 0) / cores.length)
+        : null),
+      clock: raw.perfPct && raw.baseClock
+        ? Math.round(raw.baseClock * raw.perfPct / 100)
+        : null,
+      maxClock: raw.baseClock ?? null,
+      cores,
+      zones: (raw.zones || [])
+        .map(z => ({ name: tidyZoneName(z.name), temp: Math.round((z.deciKelvin / 10 - 273.15) * 10) / 10 }))
+        // Nogle maskiner melder tomme zoner ind med urealistiske vaerdier.
+        .filter(z => z.temp > 0 && z.temp < 130)
+    }
   } catch {
-    return { load: null }
+    return { load: null, clock: null, maxClock: null, cores: [], zones: [] }
   }
 }
 
 async function getStatus () {
-  const [gpu, cpu] = await Promise.all([readGpu(), readCpu()])
+  const [gpu, system] = await Promise.all([readGpu(), readSystem()])
 
   return {
     gpu,
+    zones: system.zones,
     cpu: {
       name: os.cpus()[0]?.model?.trim() || 'Ukendt processor',
-      cores: os.cpus().length,
-      load: cpu.load
+      cores: system.cores,
+      coreCount: os.cpus().length,
+      load: system.load,
+      clock: system.clock,
+      maxClock: system.maxClock
     },
     memory: {
       total: os.totalmem(),
