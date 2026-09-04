@@ -1,10 +1,59 @@
 <!DOCTYPE html>
-<html>
+<html lang="da">
 <head>
   <meta charset="UTF-8">
-  <title>Min App</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'">
+  <title>MP_Functions</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>Hej fra min Electron app!</h1>
+  <div class="app">
+    <nav class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">MP</span>
+        <div>
+          <div class="brand-name">MP_Functions</div>
+          <div class="brand-version" id="version"></div>
+        </div>
+      </div>
+
+      <div class="nav-label">Netværk</div>
+      <button class="nav-item active" data-view="ping">
+        <span class="nav-icon">◉</span> Ping
+      </button>
+
+      <div class="nav-label">Kommer snart</div>
+      <button class="nav-item disabled" disabled><span class="nav-icon">▤</span> Portscanner</button>
+      <button class="nav-item disabled" disabled><span class="nav-icon">▦</span> Systeminfo</button>
+
+      <div class="sidebar-footer">
+        <button id="check-updates" class="link-button">Søg efter opdateringer</button>
+        <div class="update-status" id="update-status"></div>
+      </div>
+    </nav>
+
+    <main class="content">
+      <section class="view" id="view-ping">
+        <header class="view-header">
+          <h1>Ping</h1>
+          <p>Indtast en IP-adresse eller et værtsnavn for at se, om den svarer.</p>
+        </header>
+
+        <form class="ping-form" id="ping-form">
+          <input
+            type="text"
+            id="host"
+            placeholder="fx 8.8.8.8 eller google.com"
+            autocomplete="off"
+            spellcheck="false">
+          <button type="submit" id="ping-button">Ping</button>
+        </form>
+
+        <div class="result" id="result"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="renderer.js"></script>
 </body>
 </html>
