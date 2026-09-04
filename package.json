@@ -1,6 +1,6 @@
 {
   "name": "mp_functions",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MP Stores APP",
   "main": "main.js",
   "scripts": {
